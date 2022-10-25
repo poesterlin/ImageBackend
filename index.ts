@@ -45,13 +45,25 @@ app.get("/images/:folder/:id", async (req: Request<IParams, {}, {}, IQuery>, res
     }
 
     const path = join(mediaFolder, folder, id + storeExtension);
+
+    if (!(await exists(path))) {
+        return res.send(404);
+    }
+
     let s = sharp(path);
 
     if (width !== undefined || height !== undefined) {
         const h = parseInt(height);
         const w = parseInt(width);
 
-        s = s.resize(isNaN(w) ? undefined : w, isNaN(h) ? undefined : h);
+        // const {width, height} = await s.metadata();
+
+        // fix sizing
+
+        s = s.resize(isNaN(w) ? undefined : w, isNaN(h) ? undefined : h, {
+            withoutEnlargement: true,
+        });
+
     }
 
     if (format) {
@@ -98,7 +110,7 @@ app.post('/upload/:folder', FileMiddleware.memoryLoader.single('image'), async (
         })
         .toFile(join(path, id + storeExtension));
 
-    res.send(200);
+    res.send({ id });
 });
 
 app.get('/folders/new', async (_req, res) => {
@@ -116,7 +128,6 @@ app.get('/', function (req, res) {
     res.sendFile(join(__dirname, '/index.html'));
 });
 
-
 app.get("/folders/clear/:folder", async (req: Request<IParams, {}, {}, {}>, res) => {
     const folder = req.params.folder;
 
@@ -131,6 +142,11 @@ app.get("/folders/clear/:folder", async (req: Request<IParams, {}, {}, {}>, res)
     }
 
     await fs.rm(join(mediaFolder, folder), { recursive: true, force: true });
+    res.send(200);
+});
+app.get("/folders/clear", async (req: Request<IParams, {}, {}, {}>, res) => {
+    await fs.rm(mediaFolder, { recursive: true, force: true });
+    await fs.mkdir(mediaFolder);
     res.send(200);
 });
 
